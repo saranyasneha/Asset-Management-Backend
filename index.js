@@ -74,7 +74,7 @@ app.post("/login", (req, res) => {
             if (passwordMatch) {
                 return res.status(200).json({ message: "Login successful!!!!" })
             } else {
-                return res.status(200).json({ message: "Invalid credentials" })
+                return res.status(400).json({ message: "Invalid credentials" })
             }
         })
     } catch (error) {
@@ -82,12 +82,16 @@ app.post("/login", (req, res) => {
     }
 })
 
-app.post("/forgot-password", async (req, res) => {
+app.post("/checkmail", async (req, res) => {
     try {
         const { Email } = req.body;
         db.query('SELECT * FROM users WHERE Email=?', [Email], (err, results) => {
             if (results.length == 0) {
                 return res.status(400).json({ error: "unauthourized!!" })
+            }
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ error: "Internal server error" });
             }
             console.log(results);
             const userID = results[0].ID
@@ -96,7 +100,8 @@ app.post("/forgot-password", async (req, res) => {
             const token = jwt.sign({ id: userID }, secret, { expiresIn: "1d" })
             console.log(token);
             console.log(userID);
-            const link = `http://localhost:4000/reset-password/${userID}/${token}`
+            const link = `http://localhost:4200/Reset-Password/${userID}/${token}`
+            console.log("link",link);
             const mailOptions = {
                 from: "saranshan284@gmail.com",
                 to: Email,
@@ -118,7 +123,7 @@ app.post("/forgot-password", async (req, res) => {
                 <p>We have sent you this mail in response to your request to reset your password on Entrans Hub</p>
                 <p>To reset your password, please follow the link below:</P>
                 <a href="${link}" style="text-decoration: none;cursor:pointer;">
-                <button style="background: #00466a; color: #fff; border: none; padding: 10px 20px; font-size: 1em; border-radius: 4px; cursor: pointer;">Reset Password</button>
+                <button style="background: #00466a; color: #fff; border: none; padding: 10px 20px; font-size: 1em; border-radius: 4px; cursor: pointer;">${link}</button>
                 </a>
                 <p style="font-size:0.9em;">Regards,<br />Entrans hub</p>
                 <hr style="border:none;border-top:1px solid #eee" />
@@ -158,27 +163,86 @@ app.post("/forgot-password", async (req, res) => {
         res.status(500).json({ error: "Failed to reset password" });
     }
 })
-app.get("/reset-password/:userID/:token", (req, res) => {
+app.post("/ResetPassword/:userID/:token", async(req, res) => {
     try {
         const { userID, token } = req.params;
-        db.query('SELECT * FROM users WHERE ID=?', [userID], async (err, results) => {
-            if (results.length == 0) {
-                return res.status(401).json({ error: 'user not exist' })
+        console.log(userID);
+        console.log("9e0b432f-5c74-4130-98a2-2af4ad34dffc");
+        const {Password}=req.body;
+        // const newPasswordHash = await bcrypt.hash(Password, 10);
+        db.query('UPDATE users SET Password = ? WHERE ID = ?', [Password, userID], (err,results) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).json({ error: "Internal server error" });
             }
-            console.log(userID);
-            const secret = jwtsecret + results[0].Password;
-            try {
-                const verify = jwt.verify(token, secret);
-                res.send("verified")
-            } catch (error) {
-                res.send("not verified")
-            }
-        })
+            // const secret = jwtsecret + results[0].Password;
+            //     try {
+            //         const verify = jwt.verify(token, secret);
+            //         res.send("verified")
+            //     } catch (error) {
+            //         res.send("not verified")
+            //     }
+            return res.status(200).json({ message: "Password updated successfully" });
+        });
+        // db.query('SELECT * FROM users WHERE ID=?', [userID], async (err, results) => {
+        //     if (results.length == 0) {
+        //         return res.status(401).json({ error: 'user not exist' })
+        //     }
+        //     console.log(userID);
+        //     const secret = jwtsecret + results[0].Password;
+        //     try {
+        //         const verify = jwt.verify(token, secret);
+        //         res.send("verified")
+        //     } catch (error) {
+        //         res.send("not verified")
+        //     }
+        // })
         // return res.status(200).json({message:"reset"}) 
     } catch (error) {
         console.log(error);
     }
 })
-app.listen(4000, () => {
+
+app.post("/checkmail",async(req,res)=>{
+try {
+    const {Email} = req.body;
+    console.log(Email);
+    db.query('SELECT * FROM users WHERE Email=? ', [Email], async (err, results) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ error: "Internal server error" });
+        }
+        console.log(results);
+        const user = results[0];
+        if(user){
+            return res.status(200).json({ message: "User found" })
+        }else if (results.length == 0) {
+            return res.status(401).json({ error: "User not Found" })
+        }
+    })
+
+} catch (error) {
+    console.log("Some Error in checkmail")
+    console.log(error);
+}
+
+})
+// app.post("/ResetPassword/:userID/:token",async(req,res)=>{
+//     try {
+//         const {Email,Password} = req.body;
+//         // console.log("new password is : "+Password)
+//     const newPasswordHash = await bcrypt.hash(Password, 10);
+//     db.query('UPDATE users SET Password = ? WHERE Email = ?', [newPasswordHash, Email], (err) => {
+//         if (err) {
+//             console.log(err);
+//             return res.status(500).json({ error: "Internal server error" });
+//         }
+//         return res.status(200).json({ message: "Password updated successfully" });
+//     });
+//     } catch (error) {
+        
+//     }
+// })
+app.listen(4003, () => {
     console.log(`server is running on port 4000`);
 })
